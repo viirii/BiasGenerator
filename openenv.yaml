@@ -1,0 +1,9 @@
+name: glass_bridge_openenv
+entrypoint: openenv_glass_bridge.server.app:app
+client: openenv_glass_bridge.client:OpenEnvGlassBridgeClient
+models: openenv_glass_bridge.models
+example: openenv_glass_bridge.examples.example_usage
+description: >
+  Multi-round Glass Bridge tournament environment with server-side private state,
+  filtered per-agent observations, private negotiation, per-round bridge memory,
+  and per-game trust persistence.

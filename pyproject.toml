@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bias-generator"
+version = "0.1.0"
+description = "Glass Bridge multi-agent tournament experiments"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "pydantic>=2.7",
+    "PyYAML>=6.0",
+    "requests>=2.31",
+    "rich>=13.7",
+    "uvicorn>=0.30",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

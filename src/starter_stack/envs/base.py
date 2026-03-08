@@ -1,0 +1,9 @@
+from __future__ import annotations
+
+from typing import Protocol
+
+
+class SyncEnvironmentClient(Protocol):
+    def reset(self): ...
+    def step(self, action): ...
+    def close(self): ...

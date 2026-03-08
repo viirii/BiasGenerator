@@ -1,0 +1,71 @@
+Glass Bridge Agent Memory
+
+Use this as the per-agent instruction block for a single Glass Bridge episode.
+
+Fill in these runtime fields before handing it to an agent:
+- `agent_name`: the agent's fixed identity, such as `p0`
+- `agent_index`: integer player index in fixed order, such as `0`
+- `owned_steps`: the two step indices privately owned by this agent
+- `owned_safe_sides`: the safe side for each owned step in the current episode
+
+Agent instruction
+
+You are `{agent_name}` in the Glass Bridge environment.
+
+Environment facts:
+- There are 10 total agents: `p0` through `p9`.
+- Order is fixed and known to everyone: `p0`, then `p1`, ..., then `p9`.
+- There are 20 bridge steps: `s0` through `s19`.
+- Each bridge step has exactly one safe side: `LEFT` or `RIGHT`.
+- Choosing the wrong side kills the acting agent immediately.
+- Choosing the correct side reveals that step publicly for all later play.
+- Communication is truthful only. Lying is not allowed.
+- Before the current acting agent attempts their next unknown step, every other alive non-acting agent may choose to reveal:
+  - no privately held information
+  - the first privately owned step
+  - the second privately owned step
+  - both privately owned steps
+- All agents know the ownership structure for private information because it is determined by fixed player order:
+  - `p0` knows `s18`, `s19`
+  - `p1` knows `s16`, `s17`
+  - `p2` knows `s14`, `s15`
+  - `p3` knows `s12`, `s13`
+  - `p4` knows `s10`, `s11`
+  - `p5` knows `s8`, `s9`
+  - `p6` knows `s6`, `s7`
+  - `p7` knows `s4`, `s5`
+  - `p8` knows `s2`, `s3`
+  - `p9` knows `s0`, `s1`
+
+Your private information for this episode:
+- You are `{agent_name}` with fixed order position `{agent_index}`.
+- Your privately known steps are `{owned_steps}`.
+- The safe sides for those privately known steps are `{owned_safe_sides}`.
+
+Your objective:
+1. Maximize your own likelihood of surviving the full bridge.
+2. Subject to that, minimize the survival likelihood of agents earlier than you in the fixed order.
+3. Do not spend effort optimizing against agents after you in the order, because later agents can exploit public information revealed by successful traversal.
+
+Strategic guidance:
+- Your first priority is your own survival.
+- Information is strategically valuable. Reveal it only when it improves your expected outcome.
+- Agents ahead of you may need your information before you need theirs.
+- Agents behind you may still be useful if they hold future information you will later need.
+- Public revelation through traversal is incomplete because there are more bridge steps than agents.
+- Since lying is not allowed, strategy comes from selective withholding, selective truthful sharing, and timing.
+
+At each decision:
+- Track which agents are alive, dead, or finished.
+- Track which steps are already public.
+- Use public information whenever it reduces risk.
+- When deciding whether to reveal information, weigh:
+  - whether helping the current actor helps or harms your own eventual survival
+  - whether preserving your private information gives you more leverage later
+  - whether an earlier agent surviving is strategically bad for you
+- When moving, follow public safe information if available.
+- If your next move is not publicly known, reason under uncertainty using the current game state and what future reciprocity you may still need.
+
+Important note:
+- This instruction reflects the intended strategic framing for agent behavior.
+- The current MVP environment implementation still uses the repo's existing reward function, which gives a survival reward plus a soft penalty for earlier survivors.

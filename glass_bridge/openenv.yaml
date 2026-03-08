@@ -1,0 +1,7 @@
+spec_version: 1
+name: glass_bridge
+type: space
+runtime: fastapi
+app: glass_bridge.server.app:app
+port: 8000
+

@@ -1,0 +1,8 @@
+FROM pytorch/pytorch:2.4.1-cuda12.1-cudnn9-runtime
+
+WORKDIR /app
+COPY requirements/remote.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
+COPY . /app
+RUN pip install -e .
+CMD ["python", "scripts/eval_glass_bridge_tournament.py", "--config", "configs/glass_bridge_tournament_remote.yaml"]

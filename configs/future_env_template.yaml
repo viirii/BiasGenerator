@@ -1,0 +1,22 @@
+run_name: future_env_placeholder
+seed: 7
+artifacts_dir: artifacts
+
+env:
+  kind: replace_me
+  server_url: http://localhost:8004
+  game_name: replace_me
+
+policy:
+  name: replace_me
+
+rollout:
+  episodes: 100
+  max_steps_per_episode: 64
+
+checkpoint:
+  dir: artifacts/checkpoints
+  name: future_model.pt
+
+logging:
+  dir: artifacts/logs

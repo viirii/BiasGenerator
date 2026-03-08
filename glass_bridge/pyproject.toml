@@ -1,0 +1,38 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+#
+# This source code is licensed under the BSD-style license found in the
+# LICENSE file in the root directory of this source tree.
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openenv-glass-bridge"
+version = "0.1.0"
+description = "Standalone OpenEnv Glass Bridge tournament environment"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "pydantic>=2.7",
+    "PyYAML>=6.0",
+    "requests>=2.31",
+    "uvicorn>=0.30",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0"
+]
+
+[project.scripts]
+server = "glass_bridge.server.app:main"
+glass-bridge-example = "glass_bridge.examples.example_usage:main"
+
+[tool.setuptools]
+include-package-data = true
+packages = ["glass_bridge", "glass_bridge.server", "glass_bridge.examples"]
+package-dir = { "glass_bridge" = ".", "glass_bridge.server" = "server", "glass_bridge.examples" = "examples" }

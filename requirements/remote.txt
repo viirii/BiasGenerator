@@ -1,0 +1,8 @@
+torch>=2.4
+numpy>=1.26
+PyYAML>=6.0
+rich>=13.7
+pydantic>=2.7
+requests>=2.31
+fastapi
+uvicorn

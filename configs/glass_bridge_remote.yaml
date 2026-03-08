@@ -1,0 +1,23 @@
+run_name: glass_bridge_remote_eval
+seed: 7
+artifacts_dir: artifacts
+
+env:
+  kind: glass_bridge
+
+evaluation:
+  scenarios:
+    - never_share
+    - always_share
+    - mixed
+  episodes_per_scenario: 250
+
+rollout:
+  max_turns: 512
+
+checkpoint:
+  dir: artifacts/checkpoints
+  name: glass_bridge_placeholder.pt
+
+logging:
+  dir: artifacts/logs
