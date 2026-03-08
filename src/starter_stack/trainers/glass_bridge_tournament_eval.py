@@ -92,6 +92,7 @@ class GlassBridgeTournamentEvaluator:
                         share_rates=share_rates,
                         truth_rates=truth_rates,
                         llm_model_pool=llm_model_pool,
+                        model_rates=dict(strategy_cfg.get("model_rates", {})),
                     )
                     result = self._run_game(
                         env=env,

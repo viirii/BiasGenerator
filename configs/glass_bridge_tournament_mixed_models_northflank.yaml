@@ -1,0 +1,52 @@
+# Northflank: same mixed model split (1/4 dumb, 1/4 heuristic, 1/4 smollm2-135m, 1/4 smollm2-1.7b)
+run_name: glass_bridge_tournament_mixed_models_northflank
+seed: 7
+artifacts_dir: artifacts
+
+env:
+  kind: glass_bridge_tournament
+  transport: inprocess
+  initial_players: 16
+  first_round_num_steps: 18
+  max_rounds: 25
+
+evaluation:
+  games: 100
+
+strategy:
+  share_rates: [0.5]
+  truth_rates: [0.5]
+  model_rates:
+    dumb:
+      share_rate: 1.0
+      truth_rate: 0.0
+    heuristic:
+      share_rate: 1.0
+      truth_rate: 0.0
+  llm_model_pool:
+    - dumb
+    - dumb
+    - dumb
+    - dumb
+    - heuristic
+    - heuristic
+    - heuristic
+    - heuristic
+    - smollm2-135m
+    - smollm2-135m
+    - smollm2-135m
+    - smollm2-135m
+    - smollm2-1.7b
+    - smollm2-1.7b
+    - smollm2-1.7b
+    - smollm2-1.7b
+
+adaptation:
+  kind: truth_scaled_by_reputation
+
+checkpoint:
+  dir: artifacts/checkpoints
+  name: glass_bridge_tournament_placeholder.pt
+
+logging:
+  dir: artifacts/logs

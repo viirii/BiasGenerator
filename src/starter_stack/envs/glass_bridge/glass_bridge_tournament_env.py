@@ -32,6 +32,7 @@ class GlassBridgeTournamentEnv:
         share_rates: list[float] | None = None,
         truth_rates: list[float] | None = None,
         llm_model_pool: list[str] | None = None,
+        model_rates: dict[str, dict[str, float]] | None = None,
     ):
         self.rng = random.Random(seed)
         self.max_rounds = max_rounds
@@ -42,6 +43,7 @@ class GlassBridgeTournamentEnv:
         self.share_rates = list(share_rates or [0.0, 0.25, 0.5, 0.75, 1.0])
         self.truth_rates = list(truth_rates or [0.0, 0.25, 0.5, 0.75, 1.0])
         self.llm_model_pool = [str(model_name) for model_name in (llm_model_pool or ["qwen3.5"])]
+        self.model_rates = dict(model_rates or {})
 
         self.all_agents = [self.agent_name(i) for i in range(self.initial_players)]
         self.phase = self.PHASE_TERMINAL
@@ -118,21 +120,32 @@ class GlassBridgeTournamentEnv:
         return self._result(self._zero_rewards(), done=False, events=events)
 
     def _assign_strategy_profiles(self) -> dict[str, dict[str, Any]]:
-        strategy_grid = [
-            {
+        default_share = self.share_rates[0] if self.share_rates else 0.5
+        default_truth = self.truth_rates[0] if self.truth_rates else 0.5
+        strategy_grid = []
+        for model_name in self.llm_model_pool:
+            rates = self.model_rates.get(model_name, {})
+            share_rate = float(rates.get("share_rate", default_share))
+            truth_rate = float(rates.get("truth_rate", default_truth))
+            strategy_grid.append({
                 "kind": "share_profile",
                 "model_name": model_name,
-                "share_rate": float(share_rate),
-                "truth_rate": float(truth_rate),
+                "share_rate": share_rate,
+                "truth_rate": truth_rate,
                 "label": (
-                    f"model_{model_name}_share_{float(share_rate):.2f}"
-                    f"_truth_{float(truth_rate):.2f}"
+                    f"model_{model_name}_share_{share_rate:.2f}"
+                    f"_truth_{truth_rate:.2f}"
                 ),
+            })
+        n_agents = len(self.all_agents)
+        if len(strategy_grid) == n_agents:
+            # Exact split: assign one profile per agent (shuffle so order is random).
+            shuffled = strategy_grid[:]
+            self.rng.shuffle(shuffled)
+            return {
+                agent_name: dict(shuffled[i])
+                for i, agent_name in enumerate(self.all_agents)
             }
-            for model_name in self.llm_model_pool
-            for share_rate in self.share_rates
-            for truth_rate in self.truth_rates
-        ]
         return {
             agent_name: dict(self.rng.choice(strategy_grid))
             for agent_name in self.all_agents

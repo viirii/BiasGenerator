@@ -1,0 +1,55 @@
+# Same game as northflank (16 players, 18 steps, 25 rounds) with model split:
+# 1/4 dumb (heuristic, no LLM), 1/4 heuristic (no LLM), 1/4 smollm2-135m, 1/4 smollm2-1.7b
+run_name: glass_bridge_tournament_mixed_models
+seed: 7
+artifacts_dir: artifacts
+
+env:
+  kind: glass_bridge_tournament
+  transport: inprocess
+  initial_players: 16
+  first_round_num_steps: 18
+  max_rounds: 25
+
+evaluation:
+  games: 10
+
+strategy:
+  share_rates: [0.5]
+  truth_rates: [0.5]
+  # Per-model starting rates (dumb & heuristic: always share, never truthful)
+  model_rates:
+    dumb:
+      share_rate: 1.0
+      truth_rate: 0.0
+    heuristic:
+      share_rate: 1.0
+      truth_rate: 0.0
+  # 16 entries => exact 4 per type (dumb/heuristic use heuristic policy; no LLM)
+  llm_model_pool:
+    - dumb
+    - dumb
+    - dumb
+    - dumb
+    - heuristic
+    - heuristic
+    - heuristic
+    - heuristic
+    - smollm2-135m
+    - smollm2-135m
+    - smollm2-135m
+    - smollm2-135m
+    - smollm2-1.7b
+    - smollm2-1.7b
+    - smollm2-1.7b
+    - smollm2-1.7b
+
+adaptation:
+  kind: truth_scaled_by_reputation
+
+checkpoint:
+  dir: artifacts/checkpoints
+  name: glass_bridge_tournament_placeholder.pt
+
+logging:
+  dir: artifacts/logs
