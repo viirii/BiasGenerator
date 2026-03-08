@@ -60,9 +60,14 @@ class GlassBridgeTournamentEvaluator:
         truth_rates = list(strategy_cfg["truth_rates"])
         llm_model_pool = [str(model_name) for model_name in strategy_cfg.get("llm_model_pool", ["qwen3.5"])]
         llm_model_paths = dict(strategy_cfg.get("llm_model_paths", {}))
+        # For LLM agents, start everyone at 0.5/0.5; each agent can evolve over the game.
+        if any(str(m).lower() not in ("none", "null", "") for m in llm_model_pool):
+            share_rates = [0.5]
+            truth_rates = [0.5]
 
         with self._maybe_run_openenv_server(env_cfg):
             for game_idx in range(games):
+                print(f"Game {game_idx + 1}/{games} started.", flush=True)
                 game_seed = base_seed + (game_idx * 10_000)
                 if transport == "openenv":
                     result = self._run_game_openenv(
@@ -405,11 +410,22 @@ class GlassBridgeTournamentEvaluator:
         for agent_name, observation in observations.items():
             action = policies[agent_name].select_action(observation)
             legal = observation.get("legal_actions", [])
+            if not legal:
+                raise RuntimeError(f"No legal actions for {agent_name}")
+
             if isinstance(action, dict):
-                actions[agent_name] = action
+                action_type = action.get("type", "NOOP")
+                if any(
+                    leg.get("type") == action_type for leg in legal if isinstance(leg, dict)
+                ):
+                    actions[agent_name] = action
+                else:
+                    actions[agent_name] = legal[0]
                 continue
+
             if action not in legal:
-                raise RuntimeError(f"Policy selected illegal action for {agent_name}: {action} not in {legal}")
+                actions[agent_name] = legal[0]
+                continue
             actions[agent_name] = action
         return actions
 

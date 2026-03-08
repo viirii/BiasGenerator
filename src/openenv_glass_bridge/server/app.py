@@ -23,6 +23,7 @@ def health() -> dict[str, str]:
 @app.post("/reset", response_model=ResetResponse)
 def reset_environment(request: ResetRequest) -> ResetResponse:
     try:
+        print("New game started.", flush=True)
         return manager.reset(request)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

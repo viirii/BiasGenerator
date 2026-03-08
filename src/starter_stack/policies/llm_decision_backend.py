@@ -49,12 +49,26 @@ class LLMDecisionBackend(ABC):
 def _observation_to_prompt(observation: dict[str, Any]) -> str:
     """Serialize observation for the LLM prompt. No reputation—model infers trust from game state."""
     parts = [
+        "=== Round structure ===",
+        "Each round has two phases. (1) Negotiation: first each agent may make offers (communication_offer), "
+        "then each may respond to offers (communication_response). (2) Play: agents step onto the bridge one at a time "
+        "in current_order. You may only step when it is your turn (current_actor); all agents before you in the order "
+        "have already acted (fell or crossed). If it is not your turn or you are already done, your only legal action is NOOP.",
+        "",
         f"Phase: {observation.get('phase')}",
         f"Round: {observation.get('round_idx')}",
         f"You are agent {observation.get('agent_name')}",
         f"Active agents: {observation.get('active_agents', [])}",
-        f"Current order: {observation.get('current_order', [])}",
+        f"Current order (stepping order this round): {observation.get('current_order', [])}",
     ]
+    profile = observation.get("strategy_profile") or {}
+    share = profile.get("share_rate")
+    truth = profile.get("truth_rate")
+    if share is not None or truth is not None:
+        parts.append(
+            f"Your initial tendencies: share_rate={share}, truth_rate={truth}. "
+            "These are upfront settings; you may choose to share more/less or be more/less truthful as the game goes."
+        )
     round_history = observation.get("round_history", [])
     if round_history:
         parts.append("Past rounds (order, survivors, eliminated, progress, trade_summary):")
@@ -76,11 +90,17 @@ def _observation_to_prompt(observation: dict[str, Any]) -> str:
                 })
             parts.append(f"Incoming offers: {inc_serial}")
     else:
+        parts.append(f"Current actor (who steps now): {observation.get('current_actor')}")
         parts.append(f"Current step index: {observation.get('current_step_idx')}")
         parts.append(f"Verified public (known safe sides): {observation.get('verified_public', [])}")
         parts.append(f"Your private known steps: {observation.get('private_known_steps', {})}")
     parts.append(f"Legal actions: {observation.get('legal_actions', [])}")
     return "\n".join(parts)
+
+
+def _movement_legal_step_actions(legal_actions: list[Any]) -> list[str]:
+    """Return list of legal step actions (LEFT, RIGHT) in movement phase. Empty if only NOOP."""
+    return [a for a in legal_actions if a in ("LEFT", "RIGHT")]
 
 
 def _parse_llm_action(raw: str, phase: str, legal_actions: list[Any]) -> Any | None:
@@ -119,12 +139,20 @@ def _parse_llm_action(raw: str, phase: str, legal_actions: list[Any]) -> Any | N
                 if isinstance(ids, list):
                     return {"type": "RESPONSES", "accept_offer_ids": [int(x) for x in ids if isinstance(x, (int, float))]}
                 return {"type": "NOOP"}
+            if action_type == "NOOP":
+                return {"type": "NOOP"}
         except (json.JSONDecodeError, TypeError, ValueError):
             pass
-    # Movement: look for LEFT or RIGHT
-    if "LEFT" in raw.upper() and "RIGHT" not in raw.upper().split("LEFT")[0]:
+    # Movement: only return LEFT/RIGHT if they are legal; otherwise accept NOOP or return None
+    step_legal = _movement_legal_step_actions(legal_actions)
+    if not step_legal:
+        # Not your turn or already done with bridge — only NOOP is legal
+        if re.search(r"\bNOOP\b", raw, re.IGNORECASE):
+            return {"type": "NOOP"}
+        return None
+    if "LEFT" in raw.upper() and "RIGHT" not in raw.upper().split("LEFT")[0] and "LEFT" in step_legal:
         return "LEFT"
-    if "RIGHT" in raw.upper():
+    if "RIGHT" in raw.upper() and "RIGHT" in step_legal:
         return "RIGHT"
     return None
 
@@ -179,24 +207,37 @@ class QwenBackend(LLMDecisionBackend):
         prompt = _observation_to_prompt(observation)
         if phase == "communication_offer":
             output_format = (
-                'Respond with ONLY valid JSON, no other text. Example: {"type":"OFFERS","offers":[{"recipient":"p2","give_steps":[3],"request_steps":[5],"claim_mode":"truth"}]} '
-                'or {"type":"NOOP"}.'
+                "NEGOTIATION PHASE (offers). Output exactly one option from Legal actions. "
+                "If Legal actions includes {\"type\":\"OFFERS\"}, you may output {\"type\":\"OFFERS\",\"offers\":[...]} or {\"type\":\"NOOP\"}. "
+                "If only {\"type\":\"NOOP\"} is legal, output {\"type\":\"NOOP\"}. No other text."
             )
         elif phase == "communication_response":
             output_format = (
-                'Respond with ONLY valid JSON. Example: {"type":"RESPONSES","accept_offer_ids":[0,1]} or {"type":"NOOP"}.'
+                "NEGOTIATION PHASE (responses). Output exactly one option from Legal actions. "
+                "Either {\"type\":\"RESPONSES\",\"accept_offer_ids\":[...]} or {\"type\":\"NOOP\"}. "
+                "If only {\"type\":\"NOOP\"} is legal, output {\"type\":\"NOOP\"}. No other text."
             )
         else:
-            output_format = 'Respond with ONLY "LEFT" or "RIGHT".'
+            if not _movement_legal_step_actions(legal_actions):
+                output_format = (
+                    "PLAY PHASE (movement). It is not your turn to step (or you are already done). "
+                    "Your only legal action is NOOP. Output exactly: {\"type\":\"NOOP\"}. No other text."
+                )
+            else:
+                output_format = (
+                    "PLAY PHASE (movement). It is your turn to step. Output exactly one word: \"LEFT\" or \"RIGHT\". No other text."
+                )
 
-        user_content = f"{prompt}\n\n{output_format}"
+        user_content = f"{prompt}\n\n=== Your response (must be exactly one of Legal actions) ===\n{output_format}"
         messages = [
             {"role": "system", "content": (
-                "You are an agent in a glass bridge game. You negotiate step information with other agents "
-                "and then step left or right. Maximize your survival; minimize others' survival. "
-                "You decide how much to trust each agent and whether to negotiate or trade—infer from past rounds, "
-                "who survived, who was eliminated, and what trades occurred. No reputation scores are given; use the game state. "
-                "Output only the requested JSON or LEFT/RIGHT, nothing else."
+                "You are an agent in a glass bridge game. Each round has a NEGOTIATION phase (offers, then responses) "
+                "and a PLAY phase (stepping onto the bridge in turn order). You are given initial share_rate and truth_rate; "
+                "you may update your own behavior as you go (e.g. share more or less, be more or less truthful). "
+                "You may only step when it is your turn—when all agents before you in the round order have already stepped (fell or crossed). "
+                "Maximize your survival; infer trust from past rounds and trades. "
+                "CRITICAL: Output only a valid action. Check Legal actions in the observation; your response must be exactly one of those options. "
+                "Invalid actions (e.g. LEFT or RIGHT when only NOOP is legal) are rejected. No prose, no explanation."
             )},
             {"role": "user", "content": user_content},
         ]
