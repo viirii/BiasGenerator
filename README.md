@@ -79,13 +79,29 @@ python scripts/smoke_gpu.py --config configs/glass_bridge_tournament_remote.yaml
 
 ## Remote / Northflank
 
-The tournament path does not require an external game server. The simplest remote run is:
+For fast Northflank runs, keep both the evaluator and the OpenEnv server on the same machine:
 
 ```bash
-python scripts/eval_glass_bridge_tournament.py --config configs/glass_bridge_tournament_remote.yaml
+python scripts/run_northflank_glass_bridge_job.py
 ```
 
-`Dockerfile.gpu` now defaults to that command, which makes it a good starting point for a Northflank Job.
+This config uses:
+- `transport: openenv`
+- `base_url: http://127.0.0.1:8000`
+- `auto_start_server: true`
+
+so the evaluator auto-starts the local OpenEnv server and talks to it over localhost.
+
+If you want to validate the public Hugging Face deployment instead, use `configs/glass_bridge_tournament_remote.yaml` and point it at your HF Space URL.
+
+`Dockerfile.gpu` is a good starting point for a Northflank Job. If you SSH into a Northflank GPU instance directly, run the same command there.
+
+The Northflank job wrapper supports:
+
+```bash
+python scripts/run_northflank_glass_bridge_job.py --games 100 --learning-model none
+python scripts/run_northflank_glass_bridge_job.py --games 100 --learning-model truth_scaled_by_reputation
+```
 
 ## Useful commands
 

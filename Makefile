@@ -1,7 +1,7 @@
 .PHONY: smoke-gpu eval-glass-bridge eval-glass-bridge-tournament serve-openenv-glass-bridge example-openenv-glass-bridge
 
 smoke-gpu:
-	python scripts/smoke_gpu.py --config configs/glass_bridge_tournament_remote.yaml
+	python scripts/smoke_gpu.py --config configs/glass_bridge_tournament_northflank.yaml
 
 eval-glass-bridge:
 	python scripts/eval_glass_bridge.py --config configs/glass_bridge_local.yaml

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import os
 import subprocess
 import sys
@@ -34,6 +35,7 @@ class GlassBridgeTournamentEvaluator:
         eval_cfg = self.config["evaluation"]
         strategy_cfg = self.config["strategy"]
         adaptation_cfg = dict(self.config.get("adaptation", {}))
+        learning_model = str(self.config.get("learning_model", adaptation_cfg.get("kind", "unknown")))
         rollout_cfg = self.config.get("rollout", {})
 
         games = int(eval_cfg.get("games", 1))
@@ -107,6 +109,7 @@ class GlassBridgeTournamentEvaluator:
                 game_summary = {
                     "game_idx": game_idx,
                     "seed": game_seed,
+                    "learning_model": learning_model,
                     "winner": result["winner"],
                     "winner_strategy": result["winner_strategy"],
                     "winner_starting_policy": result["strategy_profiles"].get(result["winner"] or "", {}),
@@ -144,6 +147,7 @@ class GlassBridgeTournamentEvaluator:
         payload = {
             "run_name": self.config["run_name"],
             "games": games,
+            "learning_model": learning_model,
             "initial_players": initial_players,
             "max_turns": max_turns,
             "winner_strategy_counts": dict(winner_strategy_counts),
@@ -417,11 +421,13 @@ class GlassBridgeTournamentEvaluator:
                 fieldnames=[
                     "game_idx",
                     "seed",
+                    "learning_model",
                     "winner",
                     "winner_first_round_position",
                     "winner_label",
                     "winner_share_rate",
                     "winner_truth_rate",
+                    "winner_starting_policy",
                     "rounds_played",
                 ],
             )
@@ -432,11 +438,16 @@ class GlassBridgeTournamentEvaluator:
                     {
                         "game_idx": summary.get("game_idx"),
                         "seed": summary.get("seed"),
+                        "learning_model": summary.get("learning_model"),
                         "winner": summary.get("winner"),
                         "winner_first_round_position": summary.get("winner_first_round_position"),
                         "winner_label": winner_strategy.get("label", "unknown"),
                         "winner_share_rate": winner_strategy.get("share_rate"),
                         "winner_truth_rate": winner_strategy.get("truth_rate"),
+                        "winner_starting_policy": json.dumps(
+                            summary.get("winner_starting_policy", {}),
+                            sort_keys=True,
+                        ),
                         "rounds_played": summary.get("rounds_played"),
                     }
                 )

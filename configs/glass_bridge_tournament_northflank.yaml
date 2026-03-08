@@ -1,0 +1,29 @@
+run_name: glass_bridge_tournament_northflank
+seed: 7
+artifacts_dir: artifacts
+
+env:
+  kind: glass_bridge_tournament
+  transport: openenv
+  base_url: http://127.0.0.1:8000
+  auto_start_server: true
+  initial_players: 16
+  first_round_num_steps: 18
+  max_rounds: 25
+
+evaluation:
+  games: 1
+
+strategy:
+  share_rates: [0.0, 0.25, 0.5, 0.75, 1.0]
+  truth_rates: [0.0, 0.25, 0.5, 0.75, 1.0]
+
+adaptation:
+  kind: truth_scaled_by_reputation
+
+checkpoint:
+  dir: artifacts/checkpoints
+  name: glass_bridge_tournament_placeholder.pt
+
+logging:
+  dir: artifacts/logs
