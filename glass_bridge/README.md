@@ -1,3 +1,13 @@
+---
+title: Glass Bridge
+emoji: 🌉
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+app_port: 8000
+---
+
 # Glass Bridge OpenEnv Package
 
 This directory is a standalone OpenEnv/Hugging Face deployable package for the multi-round Glass Bridge tournament.
@@ -5,7 +15,7 @@ This directory is a standalone OpenEnv/Hugging Face deployable package for the m
 It contains:
 
 - the FastAPI server used by the environment runtime
-- explicit action, observation, and state models
+- explicit action and observation models
 - the tournament environment with server-side hidden state
 - a lightweight scripted example client for smoke-testing the package by itself
 
