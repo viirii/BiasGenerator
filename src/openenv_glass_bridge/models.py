@@ -138,9 +138,10 @@ class StrategyProfile(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     kind: str = "share_profile"
+    model_name: str = "qwen3.5"
     share_rate: float = 0.5
     truth_rate: float = 0.5
-    label: str = "share_0.50_truth_0.50"
+    label: str = "model_qwen3.5_share_0.50_truth_0.50"
 
 
 class ResetRequest(BaseModel):
@@ -149,6 +150,9 @@ class ResetRequest(BaseModel):
     max_rounds: int = 25
     initial_players: int = 16
     first_round_num_steps: int = 18
+    share_rates: list[float] | None = None
+    truth_rates: list[float] | None = None
+    llm_model_pool: list[str] | None = None
     strategy_profiles: dict[str, StrategyProfile] | None = None
 
 

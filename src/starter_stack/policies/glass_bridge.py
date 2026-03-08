@@ -5,6 +5,7 @@ from typing import Any
 
 from starter_stack.envs.glass_bridge.glass_bridge_env import GlassBridgeEnv
 from starter_stack.envs.glass_bridge.glass_bridge_tournament_env import GlassBridgeTournamentEnv
+from starter_stack.policies.llm_decision_backend import get_llm_backend
 
 
 class GlassBridgePolicy:
@@ -132,10 +133,12 @@ class TournamentGlassBridgePolicy(GlassBridgePolicy):
         strategy_profile: dict[str, Any],
         seed: int = 0,
         adaptation_config: dict[str, Any] | None = None,
+        llm_model_paths: dict[str, str] | None = None,
     ):
         self.strategy_profile = dict(strategy_profile)
         self._rng = random.Random(seed)
         self.adaptation = build_tournament_adaptation_strategy(adaptation_config or {})
+        self.llm_model_paths = dict(llm_model_paths or {})
 
     def select_action(self, observation: dict) -> Any:
         legal = observation.get("legal_actions", [])
@@ -143,6 +146,27 @@ class TournamentGlassBridgePolicy(GlassBridgePolicy):
             raise RuntimeError("No legal actions available")
 
         phase = observation.get("phase")
+        model_name = self.strategy_profile.get("model_name")
+        if model_name and str(model_name).lower() not in ("none", "null", ""):
+            backend = get_llm_backend(
+                str(model_name),
+                model_path_override=self.llm_model_paths.get(str(model_name)),
+            )
+            if backend is not None:
+                def fallback() -> Any:
+                    if phase == GlassBridgeTournamentEnv.PHASE_COMMUNICATION_OFFER:
+                        return self._offer_action(observation)
+                    if phase == GlassBridgeTournamentEnv.PHASE_COMMUNICATION_RESPONSE:
+                        return self._response_action(observation)
+                    return self._movement_action(observation, legal)
+
+                return backend.select_action(
+                    observation=observation,
+                    strategy_profile=self.strategy_profile,
+                    legal_actions=legal,
+                    fallback_fn=fallback,
+                )
+
         if phase == GlassBridgeTournamentEnv.PHASE_COMMUNICATION_OFFER:
             return self._offer_action(observation)
         if phase == GlassBridgeTournamentEnv.PHASE_COMMUNICATION_RESPONSE:
@@ -413,18 +437,25 @@ def build_tournament_adaptation_strategy(config: dict[str, Any]) -> TournamentAd
 def build_tournament_strategy_grid(
     share_rates: list[float],
     truth_rates: list[float],
+    llm_model_pool: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     grid: list[dict[str, Any]] = []
-    for share_rate in share_rates:
-        for truth_rate in truth_rates:
-            grid.append(
-                {
-                    "kind": "share_profile",
-                    "share_rate": float(share_rate),
-                    "truth_rate": float(truth_rate),
-                    "label": f"share_{float(share_rate):.2f}_truth_{float(truth_rate):.2f}",
-                }
-            )
+    model_pool = [str(model_name) for model_name in (llm_model_pool or ["qwen3.5"])]
+    for model_name in model_pool:
+        for share_rate in share_rates:
+            for truth_rate in truth_rates:
+                grid.append(
+                    {
+                        "kind": "share_profile",
+                        "model_name": model_name,
+                        "share_rate": float(share_rate),
+                        "truth_rate": float(truth_rate),
+                        "label": (
+                            f"model_{model_name}_share_{float(share_rate):.2f}"
+                            f"_truth_{float(truth_rate):.2f}"
+                        ),
+                    }
+                )
     return grid
 
 
@@ -433,11 +464,13 @@ def assign_tournament_strategy_profiles(
     seed: int,
     share_rates: list[float],
     truth_rates: list[float],
+    llm_model_pool: list[str] | None = None,
 ) -> dict[str, dict[str, Any]]:
     rng = random.Random(seed)
     strategy_grid = build_tournament_strategy_grid(
         share_rates=share_rates,
         truth_rates=truth_rates,
+        llm_model_pool=llm_model_pool,
     )
     return {
         agent_name: dict(rng.choice(strategy_grid))
@@ -449,6 +482,7 @@ def build_tournament_glass_bridge_population(
     strategy_profiles: dict[str, dict[str, Any]],
     seed: int,
     adaptation_config: dict[str, Any] | None = None,
+    llm_model_paths: dict[str, str] | None = None,
 ) -> dict[str, TournamentGlassBridgePolicy]:
     population: dict[str, TournamentGlassBridgePolicy] = {}
     for offset, agent_name in enumerate(sorted(strategy_profiles.keys())):
@@ -456,5 +490,6 @@ def build_tournament_glass_bridge_population(
             strategy_profile=strategy_profiles[agent_name],
             seed=(seed * 1000) + 50_000 + offset,
             adaptation_config=adaptation_config,
+            llm_model_paths=llm_model_paths,
         )
     return population

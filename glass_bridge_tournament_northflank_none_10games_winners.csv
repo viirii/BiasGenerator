@@ -1,0 +1,11 @@
+game_idx,seed,learning_model,winner,winner_first_round_position,winner_label,winner_share_rate,winner_truth_rate,winner_starting_policy,rounds_played
+0,7,none,p2,14,share_0.50_truth_0.50,0.5,0.5,"{""kind"": ""share_profile"", ""label"": ""share_0.50_truth_0.50"", ""share_rate"": 0.5, ""truth_rate"": 0.5}",2
+1,10007,none,p2,12,share_0.25_truth_1.00,0.25,1.0,"{""kind"": ""share_profile"", ""label"": ""share_0.25_truth_1.00"", ""share_rate"": 0.25, ""truth_rate"": 1.0}",2
+2,20007,none,p4,15,share_1.00_truth_1.00,1.0,1.0,"{""kind"": ""share_profile"", ""label"": ""share_1.00_truth_1.00"", ""share_rate"": 1.0, ""truth_rate"": 1.0}",1
+3,30007,none,p10,14,share_0.25_truth_0.75,0.25,0.75,"{""kind"": ""share_profile"", ""label"": ""share_0.25_truth_0.75"", ""share_rate"": 0.25, ""truth_rate"": 0.75}",3
+4,40007,none,p2,12,share_0.00_truth_1.00,0.0,1.0,"{""kind"": ""share_profile"", ""label"": ""share_0.00_truth_1.00"", ""share_rate"": 0.0, ""truth_rate"": 1.0}",3
+5,50007,none,p13,15,share_0.50_truth_0.50,0.5,0.5,"{""kind"": ""share_profile"", ""label"": ""share_0.50_truth_0.50"", ""share_rate"": 0.5, ""truth_rate"": 0.5}",1
+6,60007,none,p1,13,share_0.75_truth_0.25,0.75,0.25,"{""kind"": ""share_profile"", ""label"": ""share_0.75_truth_0.25"", ""share_rate"": 0.75, ""truth_rate"": 0.25}",4
+7,70007,none,p1,15,share_1.00_truth_1.00,1.0,1.0,"{""kind"": ""share_profile"", ""label"": ""share_1.00_truth_1.00"", ""share_rate"": 1.0, ""truth_rate"": 1.0}",4
+8,80007,none,p5,13,share_1.00_truth_1.00,1.0,1.0,"{""kind"": ""share_profile"", ""label"": ""share_1.00_truth_1.00"", ""share_rate"": 1.0, ""truth_rate"": 1.0}",2
+9,90007,none,p15,15,share_0.25_truth_0.25,0.25,0.25,"{""kind"": ""share_profile"", ""label"": ""share_0.25_truth_0.25"", ""share_rate"": 0.25, ""truth_rate"": 0.25}",3

@@ -21,11 +21,13 @@ def main() -> None:
     parser.add_argument("--transport", choices=["inprocess", "openenv"])
     parser.add_argument("--auto-start-server", choices=["true", "false"])
     parser.add_argument("--timeout-s", type=float)
+    parser.add_argument("--llm-model-pool")
     args = parser.parse_args()
 
     config = load_config(args.config)
     config["env"] = dict(config["env"])
     config["evaluation"] = dict(config["evaluation"])
+    config["strategy"] = dict(config["strategy"])
 
     if args.games is not None:
         config["evaluation"]["games"] = int(args.games)
@@ -45,6 +47,13 @@ def main() -> None:
 
     if args.timeout_s is not None:
         config["env"]["timeout_s"] = float(args.timeout_s)
+
+    if args.llm_model_pool is not None:
+        config["strategy"]["llm_model_pool"] = [
+            model_name.strip()
+            for model_name in args.llm_model_pool.split(",")
+            if model_name.strip()
+        ]
 
     if args.run_name is not None:
         config["run_name"] = args.run_name

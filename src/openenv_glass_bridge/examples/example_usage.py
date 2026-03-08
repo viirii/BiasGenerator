@@ -4,12 +4,8 @@ import argparse
 import json
 
 from openenv_glass_bridge.client import OpenEnvGlassBridgeClient
-from openenv_glass_bridge.models import AgentAction, ResetRequest, StepRequest, StrategyProfile
-from starter_stack.envs.glass_bridge.glass_bridge_tournament_env import GlassBridgeTournamentEnv
-from starter_stack.policies.glass_bridge import (
-    assign_tournament_strategy_profiles,
-    build_tournament_glass_bridge_population,
-)
+from openenv_glass_bridge.models import AgentAction, ResetRequest, StepRequest
+from starter_stack.policies.glass_bridge import build_tournament_glass_bridge_population
 
 
 def main() -> None:
@@ -27,23 +23,6 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    agent_names = [GlassBridgeTournamentEnv.agent_name(i) for i in range(args.initial_players)]
-    raw_profiles = assign_tournament_strategy_profiles(
-        agent_names=agent_names,
-        seed=args.seed,
-        share_rates=[0.0, 0.25, 0.5, 0.75, 1.0],
-        truth_rates=[0.0, 0.25, 0.5, 0.75, 1.0],
-    )
-    profiles = {
-        agent_name: StrategyProfile.model_validate(profile)
-        for agent_name, profile in raw_profiles.items()
-    }
-    policies = build_tournament_glass_bridge_population(
-        raw_profiles,
-        seed=args.seed,
-        adaptation_config={"kind": args.adaptation_kind},
-    )
-
     client = OpenEnvGlassBridgeClient(base_url=args.base_url)
     try:
         reset_response = client.reset(
@@ -52,10 +31,17 @@ def main() -> None:
                 initial_players=args.initial_players,
                 first_round_num_steps=args.first_round_steps,
                 max_rounds=args.max_rounds,
-                strategy_profiles=profiles,
+                share_rates=[0.0, 0.25, 0.5, 0.75, 1.0],
+                truth_rates=[0.0, 0.25, 0.5, 0.75, 1.0],
+                llm_model_pool=["qwen3.5"],
             )
         )
         result = reset_response.result
+        policies = build_tournament_glass_bridge_population(
+            result.info.strategy_profiles,
+            seed=args.seed,
+            adaptation_config={"kind": args.adaptation_kind},
+        )
         turn_idx = 0
 
         while not result.done and turn_idx < args.max_turns:

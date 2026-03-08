@@ -17,6 +17,12 @@ dependencies = [
     "uvicorn>=0.30",
 ]
 
+[project.optional-dependencies]
+llm = [
+    "torch>=2.0",
+    "transformers>=4.40",
+]
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 

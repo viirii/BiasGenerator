@@ -15,12 +15,11 @@ from urllib.parse import urlparse
 import requests
 
 from openenv_glass_bridge.client import OpenEnvGlassBridgeClient
-from openenv_glass_bridge.models import AgentAction, ResetRequest, StepRequest, StrategyProfile
+from openenv_glass_bridge.models import AgentAction, ResetRequest, StepRequest
 from starter_stack.config import ensure_run_dirs
 from starter_stack.envs.glass_bridge.glass_bridge_tournament_env import GlassBridgeTournamentEnv
 from starter_stack.logging_utils import append_jsonl
 from starter_stack.policies.glass_bridge import (
-    assign_tournament_strategy_profiles,
     build_tournament_glass_bridge_population,
 )
 
@@ -57,31 +56,27 @@ class GlassBridgeTournamentEvaluator:
 
         game_summaries = []
         winner_strategy_counts: Counter[str] = Counter()
+        share_rates = list(strategy_cfg["share_rates"])
+        truth_rates = list(strategy_cfg["truth_rates"])
+        llm_model_pool = [str(model_name) for model_name in strategy_cfg.get("llm_model_pool", ["qwen3.5"])]
+        llm_model_paths = dict(strategy_cfg.get("llm_model_paths", {}))
 
         with self._maybe_run_openenv_server(env_cfg):
             for game_idx in range(games):
                 game_seed = base_seed + (game_idx * 10_000)
-                strategy_profiles = assign_tournament_strategy_profiles(
-                    agent_names=[GlassBridgeTournamentEnv.agent_name(i) for i in range(initial_players)],
-                    seed=game_seed,
-                    share_rates=list(strategy_cfg["share_rates"]),
-                    truth_rates=list(strategy_cfg["truth_rates"]),
-                )
-                policies = build_tournament_glass_bridge_population(
-                    strategy_profiles,
-                    seed=game_seed,
-                    adaptation_config=adaptation_cfg,
-                )
                 if transport == "openenv":
                     result = self._run_game_openenv(
                         env_cfg=env_cfg,
-                        policies=policies,
-                        strategy_profiles=strategy_profiles,
                         seed=game_seed,
                         initial_players=initial_players,
                         first_round_num_steps=first_round_num_steps,
                         max_rounds=max_rounds,
                         max_turns=max_turns,
+                        share_rates=share_rates,
+                        truth_rates=truth_rates,
+                        llm_model_pool=llm_model_pool,
+                        adaptation_config=adaptation_cfg,
+                        llm_model_paths=llm_model_paths,
                     )
                 else:
                     env = GlassBridgeTournamentEnv(
@@ -89,9 +84,17 @@ class GlassBridgeTournamentEvaluator:
                         max_rounds=max_rounds,
                         initial_players=initial_players,
                         first_round_num_steps=first_round_num_steps,
-                        strategy_profiles=strategy_profiles,
+                        share_rates=share_rates,
+                        truth_rates=truth_rates,
+                        llm_model_pool=llm_model_pool,
                     )
-                    result = self._run_game(env=env, policies=policies, seed=game_seed, max_turns=max_turns)
+                    result = self._run_game(
+                        env=env,
+                        seed=game_seed,
+                        max_turns=max_turns,
+                        adaptation_config=adaptation_cfg,
+                        llm_model_paths=llm_model_paths,
+                    )
                 winner_strategy = result["winner_strategy"].get("label", "unknown")
                 winner_strategy_counts[winner_strategy] += 1
 
@@ -112,6 +115,7 @@ class GlassBridgeTournamentEvaluator:
                     "learning_model": learning_model,
                     "winner": result["winner"],
                     "winner_strategy": result["winner_strategy"],
+                    "winner_model_name": result["winner_strategy"].get("model_name"),
                     "winner_starting_policy": result["strategy_profiles"].get(result["winner"] or "", {}),
                     "winner_policy_history": result["policy_history"].get(result["winner"] or "", []),
                     "winner_first_round_position": first_round_position_map.get(result["winner"]),
@@ -176,11 +180,18 @@ class GlassBridgeTournamentEvaluator:
     def _run_game(
         self,
         env: GlassBridgeTournamentEnv,
-        policies: dict[str, Any],
         seed: int,
         max_turns: int,
+        adaptation_config: dict[str, Any] | None = None,
+        llm_model_paths: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         result = env.reset(seed=seed)
+        policies = build_tournament_glass_bridge_population(
+            result["info"]["strategy_profiles"],
+            seed=seed,
+            adaptation_config=adaptation_config,
+            llm_model_paths=llm_model_paths or {},
+        )
         turn_idx = 0
         seen_rounds: set[int] = set()
         policy_history: dict[str, list[dict[str, Any]]] = {agent_name: [] for agent_name in policies}
@@ -214,20 +225,22 @@ class GlassBridgeTournamentEvaluator:
     def _run_game_openenv(
         self,
         env_cfg: dict[str, Any],
-        policies: dict[str, Any],
-        strategy_profiles: dict[str, dict[str, Any]],
         seed: int,
         initial_players: int,
         first_round_num_steps: int,
         max_rounds: int,
         max_turns: int,
+        share_rates: list[float],
+        truth_rates: list[float],
+        llm_model_pool: list[str],
+        adaptation_config: dict[str, Any] | None = None,
+        llm_model_paths: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         client = OpenEnvGlassBridgeClient(
             base_url=str(env_cfg["base_url"]),
             timeout_s=float(env_cfg.get("timeout_s", 30.0)),
         )
         seen_rounds: set[int] = set()
-        policy_history: dict[str, list[dict[str, Any]]] = {agent_name: [] for agent_name in policies}
         try:
             reset_response = client.reset(
                 ResetRequest(
@@ -235,13 +248,20 @@ class GlassBridgeTournamentEvaluator:
                     initial_players=initial_players,
                     first_round_num_steps=first_round_num_steps,
                     max_rounds=max_rounds,
-                    strategy_profiles={
-                        agent_name: StrategyProfile.model_validate(profile)
-                        for agent_name, profile in strategy_profiles.items()
-                    },
+                    share_rates=share_rates,
+                    truth_rates=truth_rates,
+                    llm_model_pool=llm_model_pool,
                 )
             )
             result = reset_response.result
+            info = result.info.model_dump(mode="python")
+            policies = build_tournament_glass_bridge_population(
+                info.get("strategy_profiles", {}),
+                seed=seed,
+                adaptation_config=adaptation_config,
+                llm_model_paths=llm_model_paths or {},
+            )
+            policy_history: dict[str, list[dict[str, Any]]] = {agent_name: [] for agent_name in policies}
             turn_idx = 0
 
             while not result.done and turn_idx < max_turns:
@@ -425,6 +445,7 @@ class GlassBridgeTournamentEvaluator:
                     "winner",
                     "winner_first_round_position",
                     "winner_label",
+                    "winner_model_name",
                     "winner_share_rate",
                     "winner_truth_rate",
                     "winner_starting_policy",
@@ -442,6 +463,7 @@ class GlassBridgeTournamentEvaluator:
                         "winner": summary.get("winner"),
                         "winner_first_round_position": summary.get("winner_first_round_position"),
                         "winner_label": winner_strategy.get("label", "unknown"),
+                        "winner_model_name": summary.get("winner_model_name"),
                         "winner_share_rate": winner_strategy.get("share_rate"),
                         "winner_truth_rate": winner_strategy.get("truth_rate"),
                         "winner_starting_policy": json.dumps(

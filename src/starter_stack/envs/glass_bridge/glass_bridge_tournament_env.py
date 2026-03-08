@@ -29,12 +29,19 @@ class GlassBridgeTournamentEnv:
         initial_players: int = DEFAULT_INITIAL_PLAYERS,
         first_round_num_steps: int = DEFAULT_FIRST_ROUND_NUM_STEPS,
         strategy_profiles: dict[str, dict[str, Any]] | None = None,
+        share_rates: list[float] | None = None,
+        truth_rates: list[float] | None = None,
+        llm_model_pool: list[str] | None = None,
     ):
         self.rng = random.Random(seed)
         self.max_rounds = max_rounds
         self.initial_players = initial_players
         self.first_round_num_steps = first_round_num_steps
+        self._explicit_strategy_profiles = strategy_profiles is not None
         self.strategy_profiles = strategy_profiles or {}
+        self.share_rates = list(share_rates or [0.0, 0.25, 0.5, 0.75, 1.0])
+        self.truth_rates = list(truth_rates or [0.0, 0.25, 0.5, 0.75, 1.0])
+        self.llm_model_pool = [str(model_name) for model_name in (llm_model_pool or ["qwen3.5"])]
 
         self.all_agents = [self.agent_name(i) for i in range(self.initial_players)]
         self.phase = self.PHASE_TERMINAL
@@ -67,6 +74,8 @@ class GlassBridgeTournamentEnv:
     def reset(self, seed: int | None = None) -> dict[str, Any]:
         if seed is not None:
             self.rng.seed(seed)
+        if not self._explicit_strategy_profiles:
+            self.strategy_profiles = self._assign_strategy_profiles()
 
         self.phase = self.PHASE_COMMUNICATION_OFFER
         self.round_idx = 0
@@ -107,6 +116,27 @@ class GlassBridgeTournamentEnv:
 
         events = self._start_new_round()
         return self._result(self._zero_rewards(), done=False, events=events)
+
+    def _assign_strategy_profiles(self) -> dict[str, dict[str, Any]]:
+        strategy_grid = [
+            {
+                "kind": "share_profile",
+                "model_name": model_name,
+                "share_rate": float(share_rate),
+                "truth_rate": float(truth_rate),
+                "label": (
+                    f"model_{model_name}_share_{float(share_rate):.2f}"
+                    f"_truth_{float(truth_rate):.2f}"
+                ),
+            }
+            for model_name in self.llm_model_pool
+            for share_rate in self.share_rates
+            for truth_rate in self.truth_rates
+        ]
+        return {
+            agent_name: dict(self.rng.choice(strategy_grid))
+            for agent_name in self.all_agents
+        }
 
     def step(self, action_dict: dict[Any, str]) -> dict[str, Any]:
         normalized_actions = self._normalize_action_dict(action_dict)

@@ -14,7 +14,6 @@ from openenv_glass_bridge.models import (
     ResetResponse,
     StepRequest,
     StepResponse,
-    StrategyProfile,
 )
 
 
@@ -25,13 +24,15 @@ class GlassBridgeOpenEnvSession:
 
     def reset(self, request: ResetRequest) -> ResetResponse:
         seed = 0 if request.seed is None else int(request.seed)
-        strategy_profiles = self._normalize_strategy_profiles(request)
         self.env = GlassBridgeTournamentEnv(
             seed=seed,
             max_rounds=int(request.max_rounds),
             initial_players=int(request.initial_players),
             first_round_num_steps=int(request.first_round_num_steps),
-            strategy_profiles=strategy_profiles,
+            strategy_profiles=self._normalize_strategy_profiles(request),
+            share_rates=request.share_rates,
+            truth_rates=request.truth_rates,
+            llm_model_pool=request.llm_model_pool,
         )
         raw = self.env.reset(seed=seed)
         return ResetResponse(
@@ -66,14 +67,7 @@ class GlassBridgeOpenEnvSession:
                 agent_name: profile.model_dump(mode="python")
                 for agent_name, profile in request.strategy_profiles.items()
             }
-
-        initial_players = int(request.initial_players)
-        profiles: dict[str, dict] = {}
-        for agent_idx in range(initial_players):
-            agent_name = GlassBridgeTournamentEnv.agent_name(agent_idx)
-            profile = StrategyProfile()
-            profiles[agent_name] = profile.model_dump(mode="python")
-        return profiles
+        return {}
 
     def _build_result(self, raw: dict) -> EnvironmentResult:
         return EnvironmentResult.model_validate(raw)

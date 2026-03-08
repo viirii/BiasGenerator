@@ -47,11 +47,16 @@ def main() -> None:
         type=float,
         default=float(_env_default("GLASS_BRIDGE_TIMEOUT_S", "0")),
     )
+    parser.add_argument(
+        "--llm-model-pool",
+        default=_env_default("GLASS_BRIDGE_LLM_MODEL_POOL", ""),
+    )
     args = parser.parse_args()
 
     config = load_config(args.config)
     config["env"] = dict(config["env"])
     config["evaluation"] = dict(config["evaluation"])
+    config["strategy"] = dict(config["strategy"])
     config["adaptation"] = {"kind": args.learning_model}
     config["learning_model"] = args.learning_model
     config["evaluation"]["games"] = int(args.games)
@@ -62,6 +67,12 @@ def main() -> None:
         config["env"]["auto_start_server"] = args.auto_start_server.lower() == "true"
     if args.timeout_s > 0:
         config["env"]["timeout_s"] = float(args.timeout_s)
+    if args.llm_model_pool:
+        config["strategy"]["llm_model_pool"] = [
+            model_name.strip()
+            for model_name in args.llm_model_pool.split(",")
+            if model_name.strip()
+        ]
 
     if args.run_name:
         config["run_name"] = args.run_name
