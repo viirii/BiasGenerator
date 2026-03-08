@@ -182,8 +182,10 @@ class QwenBackend(LLMDecisionBackend):
 _LLM_BACKEND_REGISTRY: dict[str, tuple[type[LLMDecisionBackend], dict[str, Any]]] = {
     "qwen3.5": (QwenBackend, {"model_path": "unsloth/Qwen2.5-3B-Instruct"}),
     "qwen2.5": (QwenBackend, {"model_path": "unsloth/Qwen2.5-3B-Instruct"}),
+    "qwen2.5-7b": (QwenBackend, {"model_path": "Qwen/Qwen2.5-7B-Instruct"}),
     "smollm2-1.7b": (QwenBackend, {"model_path": "HuggingFaceTB/SmolLM2-1.7B-Instruct"}),
     "smollm2-360m": (QwenBackend, {"model_path": "HuggingFaceTB/SmolLM2-360M-Instruct"}),
+    "smollm2-135m": (QwenBackend, {"model_path": "HuggingFaceTB/SmolLM2-135M-Instruct"}),
 }
 _backend_cache: dict[str, LLMDecisionBackend] = {}
 

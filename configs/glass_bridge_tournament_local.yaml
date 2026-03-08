@@ -18,7 +18,7 @@ strategy:
   share_rates: [0.0, 0.25, 0.5, 0.75, 1.0]
   truth_rates: [0.0, 0.25, 0.5, 0.75, 1.0]
   # Agents with model_name "none" use heuristic; others use LLM. Mix for experiments.
-  llm_model_pool: ["qwen3.5", "smollm2-1.7b", "smollm2-360m"]
+  llm_model_pool: ["qwen3.5", "qwen2.5-7b", "smollm2-1.7b", "smollm2-135m"]
   # Optional: override model paths, e.g. qwen3.5: "unsloth/Qwen2.5-3B-Instruct"
   # llm_model_paths: {}
 
